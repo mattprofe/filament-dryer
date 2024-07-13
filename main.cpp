@@ -9,7 +9,7 @@ int main()
 
     while (true) {
 
-        LED = !BUTTON;
+        LED = BUTTON;
 
         
     }

@@ -2,28 +2,26 @@
 #include "mbed.h"
 
 //=====[Declaration and Initialization of public global Objects]======
-DigitalOut activityLed(PA_15);
-DigitalOut runLed(PC_12);
-DigitalOut buzzer(PD_2); /**< */
-DigitalOut heater(PC_10);
+DigitalOut activityLed(PA_15); /** Objeto para el LED de máquina en actividad o secado finalizado */
+DigitalOut runLed(PC_12);   /** Objeto para el LED de máquina encendida */
+DigitalOut buzzer(PD_2);    /** Objeto para el buzzer */
+DigitalOut heater(PC_10);   /** Objeto para el calentador */
 
-DigitalIn upButton(PA_13);
-DigitalIn downButton(PA_14);
+DigitalIn upButton(PA_13);  /** Objeto para el botón de incrementar */
+DigitalIn downButton(PA_14);    /** Objeto para el botón de disminuir */
 
-AnalogIn heaterSensor(PC_4);
+AnalogIn heaterSensor(PC_4);    /** Objeto para el sensor del calentador */
 
-UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /**< Object associated serial USB converter */
+UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /** Objeto asociado al convertidor serial USB */
 
 //=====[Declaration and Initialization of public global Variables]====
 #define MAX_TEMP    90 /**< Temperatura máxima en grados que se puede seleccionar */
 #define MIN_TEMP    30 /**< Temperatura minima en grados que se puede seleccionar */
 #define INCREMENT_TEMP  5 /**< Incremento de grados de secado al presionar botones */
-#define TEMPERATURE true
 
 #define MAX_TIME    24 /**< Cantidad máxima de horas que se puede seleccionar */
 #define MIN_TIME    1 /**< Cantidad mínima de horas que se puede seleccionar */
 #define INCREMENT_TIME  1 /**< Incremento de horas de secado al presionar botones */
-#define TIME false
 
 #define BLINK_ACTIVITY_SECONDS  1 /**< Especifica cada cuantos segundos parpadea el led de actividad */
 
@@ -31,50 +29,101 @@ UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /**< Object associated serial US
 
 #define MARGIN_OFF_HEATER   5 /**< Si alcanzo la temperatura no vuelve a encender hasta que cae por debajo */
 
-#define REBOUND_TIME_MS 10 /**< Tiempo de demora para el antirebote en los botones */
-#define BUTTON_UP_DOWN  3
-#define BUTTON_DOWN 2
-#define BUTTON_UP   1
-#define BUTTON_NONE 0
-#define SECONDS_TO_STOPPED_MODE 3 /**< Si se mantienen los 2 botones presionados durante estos segundos detiene el sistema */
+#define REBOUND_TIME_MS 10  /**< Tiempo de demora para el antirebote en los botones */
+#define BUTTON_UP_DOWN  3   /**< Botón aumentar y disminuir presionados al mismo tiempo */
+#define BUTTON_DOWN 2   /**< Botón disminuir presionado */
+#define BUTTON_UP   1   /**< Botón aumentar presionado */
+#define BUTTON_NONE 0   /**< Ningún Botón presionado */
+#define SECONDS_TO_STOPPED_MODE 3 /**< Si se mantienen los 2 botones presionados más de estos segundos detiene el sistema menos cambia el modo*/
 
-#define OFF 0
-#define ON  1
+#define TIME false  /**< Modo de trabajo de los botones para setear tiempo de secado */
+#define TEMPERATURE true /**< Modo de trabajo de los botones para setear temperatura de secado */
+
+#define ON  1   /**< Valor que se usa para encender leds/calentador */
+#define OFF !ON /**< Valor que se usa para apagar leds/calentador */
+#define BUZZER_ON   1   /**< Valor con el que el buzzer enciende */
+#define BUZZER_OFF  !BUZZER_ON  /**< Valor para apagar el buzzer */
 #define delay(ms)   thread_sleep_for( ms ) /**< Pseudonimo delay para thread_sleep_fo */
 
-bool activity; // si el sistema esta secando
-bool dryer_complete; // termino de secar
-bool heater_status; // estado del calentador
-int heater_temp; // almacena la temperatura cada 1 segundo
+bool activity; /**< Indica si el sistema está secando */
+bool dryer_complete; /**< Indica si el secado ha finalizado */
+bool heater_status; /**< Estado del calentador */
+int heater_temp; /**< Almacena la temperatura cada 1 segundo */
 
-bool mode_configuration; // Para cambiar entre tiempo y temperatura
+bool mode_configuration; /**< Para cambiar entre tiempo y temperatura */
 
-int activity_time; // horas especificadas para trabajar
-int work_temperature; // temperatura especificada de trabajo
+int activity_time; /**< Horas especificadas para trabajar */
+int work_temperature; /**< Temperatura especificada de trabajo */
 
-int delay_count = 0;
-int elapsed_seconds = 0;
-int elapsed_minutes = 0;
-int elapsed_hours = 0;
+int delay_count = 0;    /**< Lleva el conteo de la cantidad de retardos */
+int elapsed_seconds = 0;    /**< Lleva el conteo de segundos transcurridos */
+int elapsed_minutes = 0;    /**< Lleva el conteo de minutos transcurridos */
+int elapsed_hours = 0;  /**< Lleva el conteo de horas transcurridas */
 
-int past_button;
+int past_button;    /**< Recuerda el botón que se presiono */
 
 //=====[Declarations (prototypes) of public functions]================
+
+/**
+ * @brief Inicializa el sistema y sus componentes.
+ */
 void systemInit();
+
+/**
+ * @brief Parpadea el LED de actividad cada segundo.
+ */
 void blinkActivityLed();
+
+/**
+ * @brief Lee el estado de los botones.
+ *
+ * @return Estado del botón presionado.
+ */
 int buttonPress();
+
+/**
+ * @brief Gestiona las acciones cuando se presionan los botones.
+ *
+ * @param button El botón que ha sido presionado.
+ */
 void buttonPressingTask(int button);
+
+/**
+ * @brief Detiene el sistema y restablece los valores iniciales.
+ */
 void systemStop();
+
+/**
+ * @brief Gestiona el funcionamiento del sistema mientras está secando.
+ */
 void systemWorking();
+
+/**
+ * @brief Gestiona el sistema una vez que el secado ha finalizado.
+ */
 void systemEndWorking();
+
+/**
+ * @brief Lee la temperatura del sensor del calentador.
+ *
+ * @return Temperatura en grados Celsius.
+ */
 int heaterTemperature();
 
 //=====[Main function]================================================
+
+/**
+ * @brief Punto de entrada principal del programa.
+ *
+ * Este bucle infinito gestiona el estado del secador de filamento,
+ * incluyendo la lectura de botones, la gestión del sistema en reposo y
+ * funcionamiento, y la actualización de tiempo y temperatura.
+ */
 int main()
 {
     systemInit();
 
-    volatile int user_button = BUTTON_NONE;    
+    static int user_button = BUTTON_NONE;    
 
     printf("*** Secadora de filamento encendida!.\n");
 
@@ -157,10 +206,18 @@ int main()
 }
 
 //=====[Implementations of public functions]==========================
+
+/**
+ * @brief Inicializa el sistema y sus componentes.
+ *
+ * Configura los LEDs, el zumbador, el calentador y los botones en sus
+ * estados iniciales, y establece los valores por defecto para la
+ * temperatura y el tiempo de secado.
+ */
 void systemInit(){
     runLed = ON; // led de sistema energizado encendido
     activityLed = OFF; // led de actividad apagado
-    buzzer = OFF; // zumbador apagado
+    buzzer = BUZZER_OFF; // zumbador apagado
     heater = OFF; // calentador apagado
 
     upButton.mode(PullDown);
@@ -181,6 +238,9 @@ void systemInit(){
     elapsed_hours = 0;
 }
 
+/**
+ * @brief Parpadea el LED de actividad cada segundo.
+ */
 void blinkActivityLed(){
 
     static int previous_second = 0;
@@ -195,6 +255,11 @@ void blinkActivityLed(){
     }
 }
 
+/**
+ * @brief Lee el estado de los botones.
+ *
+ * @return Estado del botón presionado.
+ */
 int buttonPress(){
     
     // si no se presiono ningun boton
@@ -218,6 +283,16 @@ int buttonPress(){
 
 }
 
+/**
+ * @brief Gestiona las acciones cuando se presionan los botones.
+ *
+ * Esta función ajusta la temperatura y el tiempo de secado según el
+ * botón presionado y el modo de configuración actual. También puede
+ * detener el secado si se presionan ambos botones simultáneamente por
+ * un tiempo suficiente.
+ *
+ * @param button El botón que ha sido presionado.
+ */
 void buttonPressingTask(int button){
 
     static int previous_second = 0;
@@ -296,9 +371,15 @@ void buttonPressingTask(int button){
     
 }
 
+/**
+ * @brief Detiene el sistema y restablece los valores iniciales.
+ *
+ * Apaga el calentador, el zumbador y el LED de actividad. También
+ * reinicia los tiempos y temperaturas especificados.
+ */
 void systemStop(){
     activityLed = OFF; // led de actividad apagado
-    buzzer = OFF; // zumbador apagado
+    buzzer = BUZZER_OFF; // zumbador apagado
     heater = OFF; // calentador apagado
 
     activity = false; // trabajando no
@@ -314,6 +395,13 @@ void systemStop(){
     elapsed_hours = 0;
 }
 
+/**
+ * @brief Gestiona el funcionamiento del sistema mientras está secando.
+ *
+ * Enciende el LED de actividad y el calentador según sea
+ * necesario para mantener la temperatura especificada, hasta que se 
+ * alcance el tiempo de secado.
+ */
 void systemWorking(){
 
     // se alcanzo el tiempo de secado?
@@ -343,6 +431,12 @@ void systemWorking(){
     heater = heater_status;
 }
 
+/**
+ * @brief Gestiona el sistema una vez que el secado ha finalizado.
+ *
+ * Mantiene encendido el LED de actividad y hace que el zumbador emita
+ * un pitido cada cierto intervalo.
+ */
 void systemEndWorking(){
 
     //systemStop();
@@ -364,15 +458,20 @@ void systemEndWorking(){
             count_seconds = count_seconds + 1;
         }else{ // se alcanzo los BEEP_EVERY_SECONDS
             count_seconds = 0;
-            buzzer = ON; // enciende el zumbador
-            printf("-> Secado finalizado, para volver a secar presione un botón\n");
+            buzzer = BUZZER_ON; // enciende el zumbador
+            //printf("-> Secado finalizado, para volver a secar presione un botón\n");
         }
     }else{ // aún no paso 1 segundo
-        buzzer = OFF; // mantiene el zumbador apagado
+        buzzer = BUZZER_OFF; // mantiene el zumbador apagado
     }
     
 }
 
+/**
+ * @brief Lee la temperatura del sensor del calentador.
+ *
+ * @return Temperatura en grados Celsius.
+ */
 int heaterTemperature(){
 
     float voltage = heaterSensor.read() * 3.3f; // Convertir la lectura a voltaje (0.0 a 3.3V)

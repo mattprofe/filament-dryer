@@ -11,6 +11,7 @@ Matias Leonardo Baez
 - Juan Manuel Reta
 - Eduardo Filomena
 
+### Desactualizado! - no corresponde con lo explicado en descripción
 ## Video del Funcionamiento
 
 <div align="left">
@@ -23,9 +24,9 @@ Matias Leonardo Baez
 Eliminar la humedad del filamento que se utiliza en la impresión 3D.
 
 ## Descripción:
-El sistema eliminará la humedad del filamento especificando la temperatura y la duración del secado mediante dos pulsadores. La temperatura se ajusta de a 5°C con un máximo de 90°C (mínimo 30°C) y el tiempo de a 1 hora con un máximo de 24 horas (mínimo 1 hora). Al encender el sistema, un LED indica que está energizado. Al presionar cualquiera de los botones, se incrementa o disminuye la temperatura, activando o desactivando una hotbed sobre la cual está suspendida una bobina de 1 kg de filamento. Por defecto, el tiempo de secado es 1 hora y la temperatura en 30°C. Mientras el sistema está trabajando, otro LED parpadea cada segundo. Al finalizar el tiempo de secado, el LED de actividad se mantiene encendido, el buzzer emite un pitido cada 10 segundos y la hotbed se apaga. Al presionar cualquier botón, el buzzer se apaga y el proceso comienza nuevamente con la temperatura previamente configurada. El sistema entra en inactividad, apagando la hotbed y el contador de tiempo, al mantener presionados los dos botones más de 3 segundos y vuelve a su estado de trabajo al presionar cualquier botón, si se presiona menos de 3 segundos ambos botones se cambia a modo de selección de temperatura o tiempo.
+El sistema eliminará la humedad del filamento especificando la temperatura y la duración del secado mediante dos pulsadores. La temperatura se ajusta de a 5°C con un máximo de 90°C (mínimo 30°C) y el tiempo de a 1 hora con un máximo de 24 horas (mínimo 1 hora). Al encender el sistema, un LED indica que está energizado. Al presionar el botón de inicio/parada el sistema comienza a trabajar, activando o desactivando una hotbed sobre la cual está suspendida una bobina de 1 kg de filamento. Por defecto, el tiempo de secado es 1 hora y la temperatura en 30°C. Mientras el sistema está trabajando, otro LED parpadea cada segundo. Al finalizar el tiempo de secado, el LED de actividad se mantiene encendido, el buzzer emite un pitido cada 10 segundos y la hotbed se apaga. Al presionar cualquier botón, el buzzer se apaga y el proceso comienza nuevamente con la temperatura previamente configurada. El sistema entra en inactividad, apagando la hotbed y el contador de tiempo, al presionar el botón de inicio/parada si el sistema esta trabajando y vuelve a su estado de trabajo al presionarlo nuevamente, si se presiona el botón de modo se cambia el modo de ajuste entre tiempo y temperatura.
 
-Además cada 1 segundo se enviarán por uart los siguientes datos:
+Además mientras está secando se enviarán por uart cada 1 segundo los siguientes datos:
 
 - Temperatura actual
 - Temperatura seteada
@@ -49,7 +50,7 @@ Nucleo-64 STM32F401
 - 1 Buzzer (Para alertas sonoras)
 
 **Entradas:**
-- 2 Pulsadores (Para ajustar la temperatura y el tiempo)
+- 4 Pulsadores (1 para indicar arranque/parada, 1 para cambiar el modo de ajuste tiempo/temperatura y 2 para aumentar/disminuir la temperatura o tiempo)
 
 **Comunicación:**
 - Uart (Para enviar datos a un sistema externo)
@@ -58,6 +59,7 @@ Nucleo-64 STM32F401
 
 ![Diagrama en bloques](https://raw.githubusercontent.com/mattprofe/assets/master/filament_dryer/diagrama_de_bloques_tp1.png "Diagrama en bloques")
 
+### Desactualizado! - no corresponde con lo explicado en descripción
 ## Estado actual del sistema:
 
 Actualmente se encuentra funcionando sobre una protoboard como se aprecia en la figura 1.

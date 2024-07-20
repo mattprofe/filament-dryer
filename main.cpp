@@ -9,12 +9,18 @@ DigitalOut heater(PC_10);   /** Objeto para el calentador */
 
 DigitalIn upButton(PA_13);  /** Objeto para el botón de incrementar */
 DigitalIn downButton(PA_14);    /** Objeto para el botón de disminuir */
+DigitalIn modeButton(PB_2);
+DigitalIn runButton(PC_8);
 
 AnalogIn heaterSensor(PC_4);    /** Objeto para el sensor del calentador */
 
 UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /** Objeto asociado al convertidor serial USB */
 
 //=====[Declaration and Initialization of public global Variables]====
+#define SYSTEM_STOP 0 /**< Estado de sistema detenido */
+#define SYSTEM_WORK 1 /**< Estado de sistema secando */
+#define SYSTEM_FINISH 2 /**< Estado de sistema secado finalizado */
+
 #define MAX_TEMP    90 /**< Temperatura máxima en grados que se puede seleccionar */
 #define MIN_TEMP    30 /**< Temperatura minima en grados que se puede seleccionar */
 #define INCREMENT_TEMP  5 /**< Incremento de grados de secado al presionar botones */
@@ -23,13 +29,13 @@ UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /** Objeto asociado al convertid
 #define MIN_TIME    1 /**< Cantidad mínima de horas que se puede seleccionar */
 #define INCREMENT_TIME  1 /**< Incremento de horas de secado al presionar botones */
 
-#define BLINK_ACTIVITY_SECONDS  1 /**< Especifica cada cuantos segundos parpadea el led de actividad */
-
 #define BEEP_EVERY_SECONDS  10 /**< Segundos para emitir un pitido al finalizar el secado */
 
 #define MARGIN_OFF_HEATER   5 /**< Si alcanzo la temperatura no vuelve a encender hasta que cae por debajo */
 
 #define REBOUND_TIME_MS 10  /**< Tiempo de demora para el antirebote en los botones */
+#define BUTTON_RUN  5   /**< Botón disminuir presionado */
+#define BUTTON_MODE 4   /**< Botón aumentar presionado */
 #define BUTTON_UP_DOWN  3   /**< Botón aumentar y disminuir presionados al mismo tiempo */
 #define BUTTON_DOWN 2   /**< Botón disminuir presionado */
 #define BUTTON_UP   1   /**< Botón aumentar presionado */
@@ -45,34 +51,40 @@ UnbufferedSerial uartUsb(USBTX, USBRX, 115200); /** Objeto asociado al convertid
 #define BUZZER_OFF  !BUZZER_ON  /**< Valor para apagar el buzzer */
 #define delay(ms)   thread_sleep_for( ms ) /**< Pseudonimo delay para thread_sleep_fo */
 
-bool activity; /**< Indica si el sistema está secando */
-bool dryer_complete; /**< Indica si el secado ha finalizado */
+int system_mode; /**< Modo de trabajo del sistema */
+bool adjust_mode; /**< Para cambiar entre tiempo y temperatura */
+
 bool heater_status; /**< Estado del calentador */
 int heater_temp; /**< Almacena la temperatura cada 1 segundo */
-
-bool mode_configuration; /**< Para cambiar entre tiempo y temperatura */
 
 int activity_time; /**< Horas especificadas para trabajar */
 int work_temperature; /**< Temperatura especificada de trabajo */
 
-int delay_count = 0;    /**< Lleva el conteo de la cantidad de retardos */
 int elapsed_seconds = 0;    /**< Lleva el conteo de segundos transcurridos */
 int elapsed_minutes = 0;    /**< Lleva el conteo de minutos transcurridos */
 int elapsed_hours = 0;  /**< Lleva el conteo de horas transcurridas */
 
-int past_button;    /**< Recuerda el botón que se presiono */
-
 //=====[Declarations (prototypes) of public functions]================
+
+/**
+ * @brief Restablece los contadores de tiempo.
+ */
+void resetRTC();
+
+/**
+ * @brief Lleva el control del tiempo.
+ */
+void userRTC();
+
+/**
+ * @brief Detiene el sistema y restablece los valores iniciales.
+ */
+void systemStop();
 
 /**
  * @brief Inicializa el sistema y sus componentes.
  */
 void systemInit();
-
-/**
- * @brief Parpadea el LED de actividad cada segundo.
- */
-void blinkActivityLed();
 
 /**
  * @brief Lee el estado de los botones.
@@ -82,16 +94,19 @@ void blinkActivityLed();
 int buttonPress();
 
 /**
- * @brief Gestiona las acciones cuando se presionan los botones.
- *
- * @param button El botón que ha sido presionado.
+ * @brief Gestiona las acciones cuando se presionan el botón de subir.
  */
-void buttonPressingTask(int button);
+void adjustButtonUp();
 
 /**
- * @brief Detiene el sistema y restablece los valores iniciales.
+ * @brief Gestiona las acciones cuando se presiona el botón de bajar.
  */
-void systemStop();
+void adjustButtonDown();
+
+/**
+ * @brief Gestiona las acciones cuando presiona un botón.
+ */
+void keyboardTask();
 
 /**
  * @brief Gestiona el funcionamiento del sistema mientras está secando.
@@ -121,254 +136,66 @@ int heaterTemperature();
  */
 int main()
 {
+ 
     systemInit();
 
-    static int user_button = BUTTON_NONE;    
-
-    printf("*** Secadora de filamento encendida!.\n");
-
     while (true) {
-        // estado de botones
-        user_button = buttonPress();
+        
+        keyboardTask();
 
-        // si se presiono algun botón
-        if(user_button != BUTTON_NONE){
+        switch (system_mode)
+        {
+            case SYSTEM_STOP:
+                systemStop();
+                break;
 
-            // no esta trabajando
-            if(!activity){
-
-                // antes no se estaba presionando ningun botón
-                if(past_button == BUTTON_NONE ){
-                    activity = true;
-                    dryer_complete = false;
-                    printf("-> Secado Iniciado\n");
-                }
-            }else{ // esta trabajando
-
-                // aun esta secando
-                if(!dryer_complete){
-                    buttonPressingTask(user_button);
-                }else{ // termino de secar
-                    activity = false;
-                    dryer_complete = false;
-                }
-            }
-        }else{ // no se presiono ningun botón
-            past_button = BUTTON_NONE; // ultimo botón presionado es ninguno
-        }
-
-        // sistema en reposo
-        if(!activity){
-            systemStop();
-        }else{ // sistema funcionando
-
-            // no termino de secar
-            if(!dryer_complete){
+            case SYSTEM_WORK:
                 systemWorking();
-            }else{ // termino de secar
+                break;
+            
+            case SYSTEM_FINISH:
                 systemEndWorking(); 
-            }
+                break;
         }
 
-        delay(10);
-
-        delay_count = delay_count + 1;
-
-        // si se alcanzo 100 retardos de 10 ms paso 1 segundo
-        if(delay_count == 100){
-            delay_count = 0;
-
-            if(elapsed_seconds<60){
-
-                // se lee la temperatura cada 1 segundo
-                heater_temp = heaterTemperature();
-
-                // Solo envia los valores si la máquina no termino de secar
-                if(!dryer_complete){
-                    printf("temp_now: %d temp_user: %d time: %d : %d : %d time_user: %d heater: %d\n", heater_temp, work_temperature, elapsed_hours, elapsed_minutes, elapsed_seconds, activity_time, heater_status);
-                }
-
-                elapsed_seconds = elapsed_seconds + 1;
-            }else{
-                elapsed_seconds = 0;
-
-                if(elapsed_minutes<59){
-                    elapsed_minutes = elapsed_minutes + 1;
-                }else{
-
-                    elapsed_minutes = 0;
-                    elapsed_hours = elapsed_hours + 1;
-                }
-            }
-        }
+        userRTC();
 
     }
 }
 
 //=====[Implementations of public functions]==========================
-
-/**
- * @brief Inicializa el sistema y sus componentes.
- *
- * Configura los LEDs, el zumbador, el calentador y los botones en sus
- * estados iniciales, y establece los valores por defecto para la
- * temperatura y el tiempo de secado.
- */
-void systemInit(){
-    runLed = ON; // led de sistema energizado encendido
-    activityLed = OFF; // led de actividad apagado
-    buzzer = BUZZER_OFF; // zumbador apagado
-    heater = OFF; // calentador apagado
-
-    upButton.mode(PullDown);
-    downButton.mode(PullDown);
-
-    activity = false; // trabajando no
-    heater_status = false; // calentador apagado
-    activity_time = MIN_TIME; // tiempo minimo de secado
-    work_temperature = MIN_TEMP; // temperatura minima de secado
-
-    past_button = BUTTON_UP;
-
-    mode_configuration = TIME; // especifica que se configura el tiempo con los botones
-
-    delay_count = 0;
+void resetRTC(){
     elapsed_seconds = 0;
     elapsed_minutes = 0;
     elapsed_hours = 0;
 }
 
-/**
- * @brief Parpadea el LED de actividad cada segundo.
- */
-void blinkActivityLed(){
-
-    static int previous_second = 0;
-
-    // si paso 1 segundo enciende el led de actividad
-    if(previous_second != elapsed_seconds){
-        previous_second = elapsed_seconds;
-
-        activityLed = ON;
-    }else{ // si no paso aún 1 segundo apaga el led de actividad
-        activityLed = OFF;
-    }
-}
-
-/**
- * @brief Lee el estado de los botones.
- *
- * @return Estado del botón presionado.
- */
-int buttonPress(){
+void userRTC(){
     
-    // si no se presiono ningun boton
-    if(!upButton && !downButton)
-        return BUTTON_NONE;
+    static int delay_count = 0;    /**< Lleva el conteo de la cantidad de retardos */
 
-    // se presiono alguno de los botones o ambos hacemos una demora
-    delay(REBOUND_TIME_MS);
+    delay(10);
 
-     // Paso el tiempo y resulta que no esta ningun botón presionado
-    if(!upButton && !downButton)
-        return BUTTON_NONE;
+    delay_count = delay_count + 1;
 
-    if(upButton && downButton) // fueron ambos botones a la vez
-        return BUTTON_UP_DOWN;
-        
-    if(upButton) // solo fue el botón de subir
-        return BUTTON_UP;
+    // si se alcanzo 100 retardos de 10 ms paso 1 segundo
+    if(delay_count == 100){
+        delay_count = 0;
 
-    return BUTTON_DOWN; // solo fue el botón de bajar
+        if(elapsed_seconds<60){
+            elapsed_seconds = elapsed_seconds + 1;
+        }else{
+            elapsed_seconds = 0;
 
-}
+            if(elapsed_minutes<59){
+                elapsed_minutes = elapsed_minutes + 1;
+            }else{
 
-/**
- * @brief Gestiona las acciones cuando se presionan los botones.
- *
- * Esta función ajusta la temperatura y el tiempo de secado según el
- * botón presionado y el modo de configuración actual. También puede
- * detener el secado si se presionan ambos botones simultáneamente por
- * un tiempo suficiente.
- *
- * @param button El botón que ha sido presionado.
- */
-void buttonPressingTask(int button){
-
-    static int previous_second = 0;
-    static int count_seconds = 0;
-
-    // para que solo se lea el botón presionado una vez
-    if(button != past_button){
-
-        // si se presiono ambos botones a la vez
-        if(past_button == BUTTON_UP_DOWN){
-
-            // se mantuvo presionado ambos botones mas de SECONDS_TO_STOPPED_MODE
-            if(count_seconds >= SECONDS_TO_STOPPED_MODE){
-                activity = false;
-                printf("-> Secado detenido por el usuario, presione un botón para iniciar\n");
-            }
-
-            // se mantuvo presionado ambos botones menos de SECONDS_TO_STOPPED_MODE
-            if(count_seconds < SECONDS_TO_STOPPED_MODE){
-
-                if(mode_configuration == TIME){
-                    printf("-> Modo Temperatura\n");
-                }else{
-                    printf("-> Modo Tiempo\n");
-                }
-
-                // cambia el modo de seteo de valores 
-                mode_configuration = !mode_configuration;
-            }
-
-        }
-
-        // el botón actual pasa a ser el anterior
-        past_button = button;
-
-        if(button == BUTTON_UP){
-            if(mode_configuration == TIME){
-                if(activity_time < MAX_TIME){
-                    activity_time = activity_time + INCREMENT_TIME;
-                }                
-            }
-
-            if(mode_configuration == TEMPERATURE){
-                if(work_temperature < MAX_TEMP){
-                    work_temperature = work_temperature + INCREMENT_TEMP;
-                }
+                elapsed_minutes = 0;
+                elapsed_hours = elapsed_hours + 1;
             }
         }
-
-        if(button == BUTTON_DOWN){
-            if(mode_configuration == TIME){
-                if(activity_time > MIN_TIME){
-                    activity_time = activity_time - INCREMENT_TIME;
-                }
-            }
-
-            if(mode_configuration == TEMPERATURE){
-                if(work_temperature > MIN_TEMP){
-                    work_temperature = work_temperature - INCREMENT_TEMP;
-                }
-            }                  
-        }
-
-        count_seconds = 0; // limpia el valor de segundos presionando el mismo boton
-
-    }else{ // se mantienen presionado los mismos botones
-        
-        // si paso 1 segundo
-        if(previous_second != elapsed_seconds){
-            previous_second = elapsed_seconds;
-            // incrementa el contador de segundos que estan presionados
-            count_seconds = count_seconds + 1;
-        }
-
     }
-    
 }
 
 /**
@@ -382,17 +209,165 @@ void systemStop(){
     buzzer = BUZZER_OFF; // zumbador apagado
     heater = OFF; // calentador apagado
 
-    activity = false; // trabajando no
+    system_mode = SYSTEM_STOP; // trabajando no
+
     heater_status = false; // calentador apagado
     activity_time = MIN_TIME; // tiempo minimo de secado
     work_temperature = MIN_TEMP; // temperatura minima de secado
 
-    mode_configuration = TIME;
+    adjust_mode = TIME;
+    
+    resetRTC();
+}
 
-    delay_count = 0;
-    elapsed_seconds = 0;
-    elapsed_minutes = 0; // setear en 58 para hacer pruebas
-    elapsed_hours = 0;
+/**
+ * @brief Inicializa el sistema y sus componentes.
+ *
+ * Configura los LEDs, el zumbador, el calentador y los botones en sus
+ * estados iniciales, y establece los valores por defecto para la
+ * temperatura y el tiempo de secado.
+ */
+void systemInit(){
+
+    upButton.mode(PullDown);
+    downButton.mode(PullDown);
+    modeButton.mode(PullDown);
+    runButton.mode(PullDown);
+
+    runLed = ON; // led de sistema energizado encendido
+    
+    systemStop();
+
+    printf("*** Secadora de filamento encendida!.\n");
+}
+
+
+
+/**
+ * @brief Lee el estado de los botones.
+ *
+ * @return Estado del botón presionado.
+ */
+int buttonPress(){
+    
+    // si no se presiono ningun boton
+    if(!upButton && !downButton && !runButton && !modeButton)
+        return BUTTON_NONE;
+
+    // se presiono alguno de los botones o ambos hacemos una demora
+    delay(REBOUND_TIME_MS);
+
+     // Paso el tiempo y resulta que no esta ningun botón presionado
+    if(!upButton && !downButton && !runButton && !modeButton)
+        return BUTTON_NONE;
+
+    if(upButton && downButton) // fueron ambos botones a la vez
+        return BUTTON_UP_DOWN;
+        
+    if(upButton) // solo fue el botón de subir
+        return BUTTON_UP;
+
+    if(downButton)
+        return BUTTON_DOWN; // solo fue el botón de bajar
+
+    if(runButton)
+        return BUTTON_RUN;
+
+    //if(modeButton)
+    return BUTTON_MODE;
+
+}
+
+/**
+ * @brief Gestiona las acciones cuando se presionan los botones.
+ *
+ * Esta función ajusta la temperatura y el tiempo de secado según el
+ * botón presionado y el modo de configuración actual. También puede
+ * detener el secado si se presionan ambos botones simultáneamente por
+ * un tiempo suficiente.
+ *
+ * @param button El botón que ha sido presionado.
+ */
+void adjustButtonUp(){
+
+    if(adjust_mode == TIME){
+        if(activity_time < MAX_TIME){
+            activity_time = activity_time + INCREMENT_TIME;
+        }                
+    }
+
+    if(adjust_mode == TEMPERATURE){
+        if(work_temperature < MAX_TEMP){
+            work_temperature = work_temperature + INCREMENT_TEMP;
+        }
+    }
+    
+}
+
+void adjustButtonDown(){
+
+    if(adjust_mode == TIME){
+        if(activity_time > MIN_TIME){
+            activity_time = activity_time - INCREMENT_TIME;
+        }
+    }
+
+    if(adjust_mode == TEMPERATURE){
+        if(work_temperature > MIN_TEMP){
+            work_temperature = work_temperature - INCREMENT_TEMP;
+        }
+    }         
+    
+}
+
+void keyboardTask(){
+    // estado de botones
+    static int past_button = BUTTON_NONE;
+    int user_button = buttonPress();
+
+    // se presiono un botón
+    if(user_button != BUTTON_NONE){
+
+        // si no se mantiene presionado el botón
+        if(user_button != past_button){
+            past_button = user_button;
+
+            switch(user_button){
+                case BUTTON_RUN: // arranque parada
+                    if(system_mode == SYSTEM_WORK){ // si estaba secando
+                        system_mode = SYSTEM_STOP;
+                        printf("-> Secado detenido por el usuario, presione run para volver a secar\n");
+                    }else{ // si esta detenido o termino de secar
+                        system_mode = SYSTEM_WORK;
+                        printf("-> Secado iniciado\n");
+                    }
+                break;
+
+                case BUTTON_MODE: // cambio de modo
+                    // estaba en modo de tiempo cambia a temperatura
+                    if(adjust_mode==TIME){
+                        adjust_mode = TEMPERATURE;
+                        printf("-> Modo Temperatura\n");
+                    }else{ // estaba en modo temperatura cambia a tiempo
+                        adjust_mode = TIME;
+                        printf("-> Modo Tiempo\n");
+                    }
+                break;
+
+                case BUTTON_UP: // aumenta temperatura o tiempo
+                    adjustButtonUp();
+                break;
+
+                case BUTTON_DOWN: // disminuye temperatura o tiempo
+                    adjustButtonDown();
+                break;
+            
+            }
+        }
+
+    }else{
+        past_button = BUTTON_NONE;
+    }
 }
 
 /**
@@ -404,15 +379,32 @@ void systemStop(){
  */
 void systemWorking(){
 
+    static int previous_second = 0;
+
+    // si paso 1 segundo
+    if(previous_second != elapsed_seconds){
+        previous_second = elapsed_seconds;
+
+        // lee la temperatura
+        heater_temp = heaterTemperature();
+
+        // enciende el led de actividad
+        activityLed = ON;
+
+        // informa el estado de la maquina
+        printf("temperature_now: %d temperature_user: %d hour: %d  minutes: %d seconds: %d hour_user: %d heater: %d\n", heater_temp, work_temperature, elapsed_hours, elapsed_minutes, elapsed_seconds, activity_time, heater_status);
+    }else{ // si no paso aún 1 segundo
+        //apaga el led de actividad
+        activityLed = OFF;
+    }
+
     // se alcanzo el tiempo de secado?
     if(elapsed_hours >= activity_time){
 
         printf("-> Secado finalizado, para volver a secar presione un boton\n");
-        dryer_complete = true;
+        system_mode = SYSTEM_FINISH;
+        resetRTC(); // lleva el contado de tiempo a 0
     }
-
-    // parpadea cada 1 segundo
-    blinkActivityLed();
 
     // se alcanzo la temperatura
     if(heater_temp >= work_temperature){
@@ -447,7 +439,7 @@ void systemEndWorking(){
     
     activityLed = ON; // led de actividad encendido
 
-    mode_configuration = TIME;
+    adjust_mode = TIME;
 
     // si ya paso 1 segundo
     if(previous_second != elapsed_seconds){

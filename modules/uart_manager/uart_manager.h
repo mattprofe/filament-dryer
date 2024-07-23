@@ -11,9 +11,6 @@
 #define _UART_MANAGER_H_
 
 #include "mbed.h"
-#include "modules/rtc/rtc.h"
-#include "modules/heater/heater.h"
-#include "modules/temperature_sensor/temperature_sensor.h"
 #include "modules/filament_dryer_system/filament_dryer_system.h"
 
 //=====[Declaration of private defines]=================================

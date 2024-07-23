@@ -8,6 +8,7 @@
 //=====[Libraries]====================================================
 #include "mbed.h"
 #include "modules/filament_dryer_system/filament_dryer_system.h"
+#include "modules/filament_dryer_tester/filament_dryer_tester.h"
 
 //=====[Declaration and Initialization of public global Objects]======
 
@@ -29,6 +30,8 @@ int main(){
     
     while (true) {
         filamentDryerUpdate();
+
+        /***< descomentar lo que se desee terstear, comente la linea anterior */
         //filamentDryerTestingBuzzerManual();
         //filamentDryerTestingBuzzerAutomatic();
         //filamentDryerTestingKeyPad();

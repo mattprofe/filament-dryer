@@ -37,7 +37,7 @@ DigitalIn* runButton;   /** Objeto para el botón de run/stop */
 //=====[Declaration and initialization of public global variables]======
 
 //=====[Declaration and initialization of private global variables]======
-static buttonState_t keypadStatus;  /**< Se para almacenar el estado del teclado en la FSM */
+static buttonState_t keypadStatus;  /**< Se usa para almacenar el estado del teclado en la FSM */
 static buttonTemplate_t button; /**< botón valor del teclado  */
 
 //=====[Declaration (prototypes) of private functions]==================

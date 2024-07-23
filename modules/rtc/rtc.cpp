@@ -6,7 +6,7 @@
 * @contact elmattprofe@gmail.com
 */
 //=====[Libraries]======================================================
-#include "mbed.h"
+
 #include "rtc.h"
 
 //=====[Declaration of private defines]=================================
@@ -32,6 +32,9 @@ static int delay_count = 0;    /**< Lleva el conteo de la cantidad de retardos *
 //=====[Declaration (prototypes) of private functions]==================
 
 //=====[Implementations of public functions]============================
+/**
+ * @brief Inicia el contador de tiempo
+ */
 void rtcInit(){
     time_module.seconds = 0;
     time_module.minutes = 0;
@@ -39,14 +42,23 @@ void rtcInit(){
     delay_count = 0;
 }
 
+/**
+ * @brief Restablece los contadores de tiempo.
+ */
 void rtcRestart(){
     rtcInit();
 }
 
+/**
+ * @brief retorna el tiempo transcurrido hora, minutos, segundos
+ */
 rtcTime_t rtcRead(){
     return time_module;
 }
 
+/**
+ * @brief Lleva el control del tiempo.
+ */
 void rtcUpdate(){
     
     delay(TIME_MS);

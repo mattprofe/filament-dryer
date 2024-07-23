@@ -7,6 +7,9 @@
 */
 //=====[Libraries]======================================================
 #include "uart_manager.h"
+#include "modules/rtc/rtc.h"
+#include "modules/heater/heater.h"
+#include "modules/temperature_sensor/temperature_sensor.h"
 
 //=====[Declaration of private defines]=================================
 
@@ -52,7 +55,7 @@ void uartManagerUpdate(systemState_t state, adjustState_t mode, const int activi
 
         case SYSTEM_WORK:    /**< Estado de sistema secando */
             
-            if(previous_state == SYSTEM_STOP){
+            if(previous_state == SYSTEM_STOP or previous_state == SYSTEM_FINISH){
                 previous_state = SYSTEM_WORK;
 
                 printf("-> Secado iniciado\n");
@@ -84,6 +87,7 @@ void uartManagerUpdate(systemState_t state, adjustState_t mode, const int activi
         break;
 
         case SYSTEM_FINISH:   /**< Estado de sistema secado finalizado */
+            previous_state = SYSTEM_FINISH;
             printf("-> Secado finalizado, para volver a secar presione un boton\n");
         break;
 

@@ -9,6 +9,8 @@
 #ifndef _FILAMENT_DRYER_SYSTEM_H_
 #define _FILAMENT_DRYER_SYSTEM_H_
 
+#include "mbed.h"
+
 //=====[Declaration of private defines]=================================
 /** Pin para el LED de actividad */
 #define PIN_ACTIVITY_LED    PA_15
@@ -77,41 +79,6 @@ void filamentDryerInit();
  * Debe ser llamada periódicamente para manejar el estado del sistema.
  */
 void filamentDryerUpdate();
-
-/**
- * @brief Función de prueba para el teclado.
- * 
- * Permite realizar pruebas manuales del teclado informa por uart si se presiona un botón.
- */
-void filamentDryerTestingKeyPad();
-
-/**
- * @brief Función de prueba manual para el buzzer.
- * 
- * Permite realizar pruebas manuales del buzzer al presionar el botón run/stop.
- */
-void filamentDryerTestingBuzzerManual();
-
-/**
- * @brief Función de prueba automática para el buzzer.
- * 
- * Permite realizar pruebas automáticas del buzzer al emitir pitidos transcurridos los BEEP_EVERY_SECONDS.
- */
-void filamentDryerTestingBuzzerAutomatic();
-
-/**
- * @brief Función de prueba manual para el calentador.
- * 
- * Permite realizar pruebas manuales del calentador utilizando el botón run/stop con protección por sobrecalentamiento, informa por uart temperatura y estado del calentador.
- */
-void filamentDryerTestingHeaterManual();
-
-/**
- * @brief Función de prueba automática para el calentador.
- * 
- * Permite realizar pruebas automáticas del calentador seteandolo a 60°C cada 1 segundo informa la temperatura por uart.
- */
-void filamentDryerTestingHeaterAutomatic();
 
 //=====[#include guards - end]==========================================
 #endif

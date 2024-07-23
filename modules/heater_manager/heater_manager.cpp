@@ -7,6 +7,8 @@
 */
 //=====[Libraries]======================================================
 #include "heater_manager.h"
+#include "modules/heater/heater.h"
+#include "modules/temperature_sensor/temperature_sensor.h"
 
 //=====[Declaration of private defines]=================================
 

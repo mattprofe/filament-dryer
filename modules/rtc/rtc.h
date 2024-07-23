@@ -10,6 +10,8 @@
 #ifndef _RTC_H_
 #define _RTC_H_
 
+#include "mbed.h"
+
 //=====[Declaration of private defines]=================================
 
 //=====[Declaration of private data types]==============================

@@ -19,20 +19,29 @@
 //=====[Declaration (prototypes) of public functions]===================
 
 /**
- * @brief Inicializa el sensor de temperatura
- *
+ * @brief Inicializa el sensor de temperatura.
+ * 
+ * Esta función configura el pin del sensor de temperatura e inicializa 
+ * el valor promedio de voltaje del sensor.
+ * 
+ * @param heaterSensorPin Pin del sensor de temperatura.
  */
 void temperatureSensorInit(PinName heaterSensorPin);
 
 /**
- * @brief Retorna la temperatura del sensor en grados
- *
+ * @brief Lee la temperatura en grados Celsius.
+ * 
+ * Convierte el valor promedio de voltaje del sensor a grados Celsius.
+ * 
+ * @return int Temperatura en grados Celsius.
  */
 int temperatureSensorReadCelsius();
 
 /**
- * @brief Lee la temperatura del sensor de temperatura
- *
+ * @brief Actualiza los valores de temperatura.
+ * 
+ * Lee el voltaje del sensor de temperatura, lo almacena en un 
+ * arreglo y calcula el promedio de las muestras para obtener una lectura estable.
  */
 void temperatureSensorUpdate();
 

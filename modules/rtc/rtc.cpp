@@ -15,7 +15,7 @@
 #define TIME_MS 10
 #endif
 
-#define delay(ms)   thread_sleep_for( ms ) /**< Pseudonimo delay para thread_sleep_fo */
+#define delay(ms)   thread_sleep_for( ms ) /**< Pseudonimo delay para thread_sleep_for */
 
 //=====[Declaration of private data types]==============================
 
@@ -26,14 +26,17 @@
 //=====[Declaration and initialization of public global variables]======
 
 //=====[Declaration and initialization of private global variables]=====
-static rtcTime_t time_module;
+static rtcTime_t time_module;   /**< Estructura para almacenar el tiempo. */
 static int delay_count = 0;    /**< Lleva el conteo de la cantidad de retardos */
 
 //=====[Declaration (prototypes) of private functions]==================
 
 //=====[Implementations of public functions]============================
 /**
- * @brief Inicia el contador de tiempo
+ * @brief Inicia el contador de tiempo.
+ * 
+ * Inicializa los contadores de segundos, minutos y horas a cero,
+ * y reinicia el contador de retardos.
  */
 void rtcInit(){
     time_module.seconds = 0;
@@ -44,13 +47,17 @@ void rtcInit(){
 
 /**
  * @brief Restablece los contadores de tiempo.
+ * 
+ * Reinicia el contador de tiempo llamando a la función rtcInit().
  */
 void rtcRestart(){
     rtcInit();
 }
 
 /**
- * @brief retorna el tiempo transcurrido hora, minutos, segundos
+ * @brief Retorna el tiempo transcurrido en horas, minutos y segundos.
+ * 
+ * @return rtcTime_t Estructura que contiene el tiempo transcurrido.
  */
 rtcTime_t rtcRead(){
     return time_module;
@@ -58,6 +65,9 @@ rtcTime_t rtcRead(){
 
 /**
  * @brief Lleva el control del tiempo.
+ * 
+ * Actualiza los contadores de tiempo cada vez que se alcanza un retraso de TIME_MS.
+ * Incrementa los segundos, minutos y horas según sea necesario.
  */
 void rtcUpdate(){
     
